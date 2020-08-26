@@ -1,0 +1,24 @@
+{
+  "name": "unwanted-merch-bot",
+  "version": "1.0.0",
+  "description": "Twitter Bot that makes shirts based on companies nobody wants shirts of",
+  "main": "index.js",
+  "scripts": {
+    "test": "node src/app.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gaiablade/unwanted-merch-bot.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/gaiablade/unwanted-merch-bot/issues"
+  },
+  "homepage": "https://github.com/gaiablade/unwanted-merch-bot#readme",
+  "dependencies": {
+    "oauth": "^0.9.15",
+    "twitter": "^1.7.1",
+    "unirest": "^0.6.0"
+  }
+}
