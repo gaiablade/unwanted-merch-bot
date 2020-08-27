@@ -17,6 +17,7 @@
   },
   "homepage": "https://github.com/gaiablade/unwanted-merch-bot#readme",
   "dependencies": {
+    "jimp": "^0.16.0",
     "oauth": "^0.9.15",
     "twitter": "^1.7.1",
     "unirest": "^0.6.0"
