@@ -1,5 +1,18 @@
 [
-    "lysol",
-    "sugar in the raw",
-    "great value water"
+  {
+    "name": "bar soap",
+    "approved": "true"
+  },
+  {
+    "name": "sugar in the raw",
+    "approved": "false"
+  },
+  {
+    "name": "great value water",
+    "approved": "false"
+  },
+  {
+    "name": "Aaaand a test reply",
+    "approved": "rejected"
+  }
 ]

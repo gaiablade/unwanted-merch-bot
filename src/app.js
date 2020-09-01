@@ -2,7 +2,12 @@ const Twitter = require("twitter");
 const fs =require("fs");
 const path = require("path");
 const Jimp = require("jimp");
-const { resolve } = require("path");
+const image = require("./image.js");
+const bing = require("./bing.js");
+
+// scraping
+const pup = require("puppeteer");
+const request = require("request");
 
 // Setup Twitter Authorization Stuff:
 const credentials = JSON.parse(fs.readFileSync(`${__dirname}/credentials.json`));
@@ -17,22 +22,8 @@ const T = new Twitter({
 });
 
 // Functions:
-const createImage = function(logo_filename, callback) {
-    Jimp.read(`${__dirname}/images/blank_shirt.jpg`, (e, shirt, coords) => {
-        if (e) throw e;
-        Jimp.read(`${__dirname}/images/${logo_filename}`, (e, logo, coords) => {
-            logo.resize(300, 300, (e, resized_logo, coords) => {
-                if (e) throw e;
-                shirt.blit(resized_logo, 350, 200, (e, final, coords) => {
-                    if (e) throw e;
-                    final.write(`${__dirname}/images/shirt_${logo_filename}`, callback)
-                });
-            });
-        });
-    });
-}
 
-const postImage = function(image_filename, status) {
+const postImage = async function(image_filename, status) {
     const PATH = path.join(__dirname, `images/${image_filename}`);
     console.log(PATH);
 
@@ -94,7 +85,7 @@ const postImage = function(image_filename, status) {
     });
 }
 
-const getMostRecentTweets = function(callback) {
+const getMostRecentTweets = async function(callback) {
     const USER_TIMELINE_params = {
         include_rts: false,
         exclude_replies: true
@@ -105,18 +96,103 @@ const getMostRecentTweets = function(callback) {
     });
 }
 
-const getReplies = function(id_str, callback) {
+const getReplies = async function(id_str, callback) {
+    const replies = [];
 
+    const SEARCH_params = {
+        q: "to:BotUnwanted"
+    };
+    T.get("https://api.twitter.com/1.1/search/tweets.json", SEARCH_params, (e, data, res) => {
+        if (e) throw e;
+        for (const reply of data.statuses) {
+            if (reply.in_reply_to_status_id_str == id_str) {
+                replies.push(reply);
+            }
+        }
+        callback(replies);
+    });
 }
 
-function main() {
-    // Get twitter id:
-    // Get most recent tweet
-    // Get most liked comment(s)
-    getMostRecentTweets((data) => { console.log(data); });
+const getFirstImageURL_Options = async function(idea) {
+    idea = idea.replace(/ /g, "%20");
+    const url = `https://bing.com/images/search?q=${idea}`;
+
+    const browser = await pup.launch({ headless: true });
+    const page = await browser.newPage();
+
+    await page.goto(url);
+    await page.waitFor(2500);
+    await page.screenshot({ path: `${__dirname}/images/screenshots/1.png` });
+
+    await page.click("ul.dgControl_list:nth-child(1) > li:nth-child(1) > div:nth-child(1) > div:nth-child(1) > a:nth-child(1) > div:nth-child(1)");
+    await page.waitFor(2500);
+    await page.screenshot({ path: `${__dirname}/images/screenshots/2.png` });
+
+    for (const frame of page.frames()) {
+        if (frame.url().includes("mode=overlay")) {
+            page.goto(frame.url());
+            break;
+        }
+    }
+
+    await page.waitFor(2500);
+    await page.screenshot({ path: `${__dirname}/images/screenshots/3.png` });
+    const image_url = await page.evaluate(() => {
+        const images = document.querySelectorAll("img");
+        return Array.from(images).map(v => v.src)[0];
+    });
+    console.log(image_url);
+
+    await browser.close();
+
+    return { url: image_url.replace(/http:/g, "https:"), dest: `${__dirname}/images/downloaded`};
+}
+
+const main = async function() {
+    // Get most liked comment(s) and add new ideas to list
+    /*
+    getMostRecentTweets((data) => {
+        getReplies(data.id_str, (replies) => {
+            const list = JSON.parse(fs.readFileSync(`${__dirname}/list.json`));
+            const pastPosts = JSON.parse(fs.readFileSync(`${__dirname}/pastPosts.json`));
+            const rejectedPosts = JSON.parse(fs.readFileSync(`${__dirname}/rejectedPosts.json`));
+            replies.forEach((reply, index) => {
+                if (pastPosts.hasOwnProperty(reply.text)) {
+                } else if (rejectedPosts.hasOwnProperty(reply.text)) {
+                } else if (list.find(element => element.name == reply.text) == undefined) {
+                    list.push({
+                        name: reply.text,
+                        approved: "false"
+                    });
+                }
+            });
+            fs.writeFileSync(`${__dirname}/list.json`, JSON.stringify(list, null, 2));
+        });
+    });
+    */
+
+    // Check list for candidate:
+    let list = JSON.parse(fs.readFileSync(`${__dirname}/list.json`));
+    list = list.filter(element => element.approved == "true");
+    console.log(list);
+
     // Google image search and save related images
-    // Create shirt
-    // Post shirt
+    if (list.length > 0) {
+        let idea = list[0].name;
+        const search_results = await bing.query(idea);
+
+        const filename = await image.downloadImage(search_results[0]);
+
+        // Create shirt
+        const file_location = `src/images/output/${filename}`;
+        const output_location = `src/images/output/shirt_${filename}`;
+        await image.createImage(file_location, output_location, { url: "" }, () => {});
+    }
 }
 
-setInterval(main, 14400 * 1000);
+main();
+
+// Constants:
+const secondsPerDay = 86400;
+const postsPerDay = 6;
+setInterval(main, secondsPerDay / postsPerDay * 1000);
